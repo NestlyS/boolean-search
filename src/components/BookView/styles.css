@@ -1,0 +1,26 @@
+.bookView {
+  text-align: start;
+  padding: 15px 25px;
+}
+
+.bookView.focused {
+  background-color: rgb(177, 203, 233);
+}
+
+.bookView div {
+  margin-left: 15px;
+  line-height: 1.5em;
+}
+
+.title {
+  font-weight: bold;
+  margin-left: -5px !important;
+}
+
+.hidden {
+  display: none;
+}
+
+.extraBlock {
+  margin: 0 !important;
+}
