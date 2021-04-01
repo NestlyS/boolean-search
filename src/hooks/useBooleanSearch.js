@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from "react";
-
+/* eslint-disable no-sequences */
 const makeTermReversedMatrix = (data) =>
   data.reduce(
     (acc, item, index) => (
