@@ -44,21 +44,36 @@ const exceptionArray = (arr1, data) => {
   return dataIds.filter((value) => !arr1.includes(value));
 };
 
-const parseAndTransformString = (str, matrix) => {
-  return str
-    ? str.split(" ").length > 1
-      ? str
-          .split(" ")
-          .reduce(
-            (acc, item) =>
-              intersectionArrays(acc, matrix[item] ? matrix[item] : []),
-            []
-          )
-      : matrix[str]
-    : [];
+const parseAndTransformString = (str, matrix, data) => {
+  if (!str) {
+    return [];
+  }
+
+  let splitted = str.split(" ");
+  let shouldReverse = false;
+
+  if (splitted.length === 1) {
+    return matrix[str] || [];
+  }
+
+  if (splitted[0] === "не") {
+    shouldReverse = true;
+    splitted.shift();
+  }
+
+  const result = splitted.reduce(
+    (acc, item) => unionArrays(acc, matrix[item] || []),
+    matrix[splitted[0]]
+  );
+
+  if (shouldReverse) {
+    return exceptionArray(result, data);
+  }
+
+  return result;
 };
 
-const regExp = /(^или$)|(^и$)|(^не$)/;
+const regExp = /(^или$)|(^и$)/;
 
 export const useBooleanSearch = (data) => {
   const matrix = useMemo(() => makeTermReversedMatrix(data), [data]);
@@ -70,7 +85,7 @@ export const useBooleanSearch = (data) => {
         .split(" ")
         .reduce((collectArray, item, index, array) => {
           // Если это обычное слово
-          if (!item.match(/(^или$)|(^и$)|(^не$)/)) {
+          if (!item.match(regExp)) {
             subArray = [...subArray, item];
             if (index === array.length - 1) {
               return [...collectArray, subArray.join(" ")];
@@ -84,9 +99,6 @@ export const useBooleanSearch = (data) => {
           if (item === "и") {
             res = [...collectArray, subArray.join(" "), "и"];
           }
-          if (item === "не") {
-            res = [...collectArray, subArray.join(" "), "не"];
-          }
           if (index === array.length - 1) {
             res = [...collectArray, subArray.join(" ")];
           }
@@ -97,34 +109,41 @@ export const useBooleanSearch = (data) => {
         .filter(
           (item, index, array) =>
             !item.match(regExp) ||
-            (item === "не" &&
-              array[index + 1] &&
-              !array[index + 1].match(regExp)) ||
             (item.match(regExp) &&
               array[index - 1] &&
               !array[index - 1].match(regExp) &&
               array[index + 1] &&
-              array[index + 1] === "не") ||
-            !array[index + 1].match(regExp)
+              !array[index + 1].match(regExp))
+        )
+        .reduce(
+          (acc, item) => {
+            const clone = [...acc];
+            if (item.match(regExp)) {
+              clone[0] = [item, ...clone[0]];
+              return clone;
+            }
+            clone[1] = [item, ...clone[1]];
+            return clone;
+          },
+          [[], []]
         );
-      let result = parseAndTransformString(cookedQuery[0], matrix);
-      for (let i = 1; i < cookedQuery.length; i++) {
-        const arr1 = result;
-        let arr2 = [];
-        if (cookedQuery[i + 1] === "не") {
-          arr2 = exceptionArray(
-            parseAndTransformString(cookedQuery[i + 2], matrix),
-            data
-          );
-        } else {
-          arr2 = parseAndTransformString(cookedQuery[i + 1], matrix);
+      let result = parseAndTransformString(cookedQuery[1].pop(), matrix, data);
+      for (let i = cookedQuery[0].length - 1; i >= 0; i--) {
+        if (cookedQuery[1].length <= 0) {
+          break;
         }
 
-        if (cookedQuery[i] === "или") {
-          result = unionArrays(arr1, arr2);
+        const arg1 = result;
+        const arg2 = parseAndTransformString(
+          cookedQuery[1].pop(),
+          matrix,
+          data
+        );
+        if (cookedQuery[0][i] === "и") {
+          result = intersectionArrays(arg1, arg2);
         }
-        if (cookedQuery[i] === "и") {
-          result = intersectionArrays(arr1, arr2);
+        if (cookedQuery[0][i] === "или") {
+          result = unionArrays(arg1, arg2);
         }
       }
       return Array.from(new Set(result));
